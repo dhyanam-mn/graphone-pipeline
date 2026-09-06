@@ -1,6 +1,19 @@
 # GraphOne Intelligence Pipeline
 
-Async ingestion pipeline for startups, products, research papers, jobs, news, and entity resolution for the GraphOne/FrontierAtlas AI Engineer task.
+> *This project was originally built as a take-home engineering assessment for an AI Engineer role, completed independently after the submission window as a personal portfolio project.*
+
+Async ingestion pipeline for startups, products, research papers, jobs, news, and entity resolution for the GraphOne / FrontierAtlas AI Engineer task.
+
+---
+
+## Data Output
+
+The full output of this pipeline across all 6 datasets has been exported to Google Sheets:
+- **Public Google Sheet Link**: [https://docs.google.com/spreadsheets/d/1ZNnCVq3SZcQz_n1oVfw8PqyXNgiDNG5sT1nGP-71y3M/edit](https://docs.google.com/spreadsheets/d/1ZNnCVq3SZcQz_n1oVfw8PqyXNgiDNG5sT1nGP-71y3M/edit)
+
+All 6 tabs (`Startups`, `Products`, `Research Papers`, `Jobs`, `News`, `Entity Mapping Log`) are fully populated and verified live.
+
+---
 
 ## Final Collected Dataset & System Performance
 
@@ -12,8 +25,8 @@ Async ingestion pipeline for startups, products, research papers, jobs, news, an
 | **News** (24h) | **25** | Hacker News RSS, NY Times Tech RSS, arXiv cs.AI RSS | 100% strictly within 24h freshness window (UTC normalized) |
 | **Jobs** (24h) | **9** | Hacker News Hiring, WeWorkRemotely RSS, Remotive RSS | 100% strictly within 24h freshness window (UTC normalized) |
 | **Entity Mapping Log** | **2,999** | EntityResolver Engine | 2,999 total resolutions (`new`: 1,813, `llm`: 1,125, `exact`: 57, `fuzzy`: 4) |
-| **Test Suite** | **6 / 6 Passed** | Pytest (`pytest tests/ -v`) | 100% test pass rate across schemas, freshness, pwc, & export |
-| **Google Sheets Export** | **Verified** | Live Google Sheets API (`gspread` 6.2.1) | All 6 worksheet tabs created & populated via `batch_update` |
+| **Test Suite** | **7 / 7 Passed** | Pytest (`pytest tests/ -v`) | 100% test pass rate across schemas, freshness, pwc, batch export |
+| **Google Sheets Export** | **Verified** | Live Google Sheets API (`gspread` 6.2.1) | All 6 worksheet tabs populated via 500-row batching & 3-retry backoff |
 
 > [!NOTE]
 > **Source URL Integrity**: Every record across all 6 tabs contains a valid, non-empty `source.url` pointing to a real web page or API source. Zero synthetic or mock fallback data was generated.
@@ -50,12 +63,12 @@ Key dependencies from `requirements.txt`:
 - `pytest>=8.2.2`, `pytest-asyncio>=0.23.7` (Automated testing)
 
 ### 2. Environment Configuration (`.env`)
-Create or edit `.env` in the project root:
+Copy `.env.example` to `.env` and configure keys:
 ```env
 # LLM Provider Keys
-GEMINI_API_KEY=<configured, see .env>
-GROQ_API_KEY=<configured, see .env>
-DEEPSEEK_API_KEY=
+GEMINI_API_KEY=your_gemini_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
 
 # Storage & Infrastructure
 DATABASE_URL=postgresql://graphone:graphone@localhost:5432/intelligence_graph
@@ -97,4 +110,4 @@ GOOGLE_SHEET_ID=1ZNnCVq3SZcQz_n1oVfw8PqyXNgiDNG5sT1nGP-71y3M
 - `src/scraper/freshness.py`: Strict 24-hour freshness crawler with `dateparser` UTC normalization and runtime freshness assertions.
 - `src/resolver/entity_resolver.py`: Entity resolution engine combining seed registry exact matching, RapidFuzz token sort ratio scoring, and LLM tie-breaking.
 - `src/llm/orchestrator.py`: Resilient 3-tier LLM fallback orchestrator with `tiktoken` chunking (`TOKEN_LIMIT = 6000`).
-- `src/export/sheets_export.py`: Google Sheets export module using `gspread` `batch_update` across 6 dedicated worksheet tabs.
+- `src/export/sheets_export.py`: Google Sheets export module using `gspread` batched writing (500 rows/batch) and 3-retry exponential backoff across 6 dedicated worksheet tabs.

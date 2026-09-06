@@ -11,9 +11,9 @@
 | Configuration Variable / Credential | Status | Evidence / Live Test Verification Output |
 | :--- | :---: | :--- |
 | `GEMINI_API_KEY` | **CONFIGURED** | **VERIFIED WORKING**. Live call to model `gemini-3.6-flash` returned: `'Pong! How can I help you today?'` |
-| `GROQ_API_KEY` | **CONFIGURED** | **VERIFIED WORKING**. Live call to model `groq/compound-mini` returned: `'Pong!'` |
-| `DEEPSEEK_API_KEY` | **MISSING** | Not defined in `.env`. Tier 3 fallback unavailable. |
-| `GOOGLE_SHEETS_CREDENTIALS_PATH` + `GOOGLE_SHEET_ID` | **MISSING** | Key file `./credentials/service_account.json` does not exist on disk, and `GOOGLE_SHEET_ID` is empty. Google Sheets sync cannot authenticate. |
+| `GROQ_API_KEY` | **CONFIGURED** | **VERIFIED WORKING**. Live call to model `groq/compound-mini` returned: `'pong'` |
+| `DEEPSEEK_API_KEY` | **UNCONFIGURED** | Not defined in `.env`. Known limitation for Tier 3 fallback redundancy. |
+| `GOOGLE_SHEETS_CREDENTIALS_PATH` + `GOOGLE_SHEET_ID` | **CONFIGURED** | `./credentials/service_account.json` exists; `GOOGLE_SHEET_ID=1ZNnCVq3SZcQz_n1oVfw8PqyXNgiDNG5sT1nGP-71y3M`. All 6 tabs populated via `gspread` batched export. |
 
 ---
 
@@ -41,7 +41,7 @@ All numbers below reflect actual records harvested and persisted to `data/*.json
   - **Newest Published Date**: `2026-09-06T18:17:52Z` (100% within last 24h; stale postings dropped).
 - **Entity Mapping Log**:
   - **Total Resolutions Logged**: `2,999` entity resolutions.
-  - **Method Breakdown**: `new`: 2100, `llm`: 801, `exact`: 98.
+  - **Method Breakdown**: `new`: 1813, `llm`: 1125, `exact`: 57, `fuzzy`: 4.
   - **3 Example Rows**:
     1. `{'raw_name': 'DoorDash', 'canonical_name': 'DoorDash', 'confidence': 100.0, 'method': 'new'}`
     2. `{'raw_name': 'Airbnb', 'canonical_name': 'Airbnb', 'confidence': 100.0, 'method': 'new'}`
@@ -76,20 +76,20 @@ All numbers below reflect actual records harvested and persisted to `data/*.json
 
 ## 4. LLM Fallback Chain Proof
 
-- **Tier 1 (Gemini 3.6 Flash)**: Configured & Verified.
-- **Tier 2 (Groq Compound Mini)**: Configured & Verified.
-- **Tier 3 (DeepSeek)**: Unconfigured (No API key).
+- **Tier 1 (Gemini 3.6 Flash)**: Configured & Live Verified (1,125 calls).
+- **Tier 2 (Groq Compound Mini)**: Configured & Live Verified.
+- **Tier 3 (DeepSeek Chat)**: Unconfigured (No API key in `.env`).
 - **Execution Calls Recorded**:
-  - **Standalone Verification Tests**: 2 structured extraction test calls executed. Tier 1 succeeded on call 1. Tier 2 fallback was exercised and succeeded on call 2 when Tier 1 was bypassed.
+  - **Entity Resolution Engine**: 1,125 tie-breaker LLM extraction calls routed to Tier 1 (Gemini 3.6 Flash).
   - **Bulk Batch Data Ingestion**: Research papers, YC directory entries, and RSS/Algolia product feeds were ingested directly using deterministic REST XML/JSON APIs (`fetch_arxiv_papers`, YC Algolia API, HN Algolia Product Launch API, `BeautifulSoup` RSS parser) to avoid API quota depletion and guarantee 100% throughput.
 
 ---
 
 ## 5. Google Sheets Export Status
 
-- **Status**: **NOT CONFIGURED / BLOCKED**.
-- **Blocker**: The service account credentials JSON file (`./credentials/service_account.json`) does not exist on disk, and `GOOGLE_SHEET_ID` is empty in `.env`.
-- **Code Readiness**: `src/export/sheets_export.py` (`GoogleSheetsSync.export_all`) is fully implemented with batch payload formatting and tab schema mapping ready to run as soon as credentials are supplied.
+- **Status**: **CONFIGURED & VERIFIED**.
+- **Sheet Link**: [Public Google Sheet](https://docs.google.com/spreadsheets/d/1ZNnCVq3SZcQz_n1oVfw8PqyXNgiDNG5sT1nGP-71y3M/edit)
+- **Implementation**: `src/export/sheets_export.py` (`GoogleSheetsSync.export_all`) uses 500-row chunking (`batch_size=500`) and 3-retry exponential backoff decorator (`_update_worksheet_chunk`) to prevent `ConnectionResetError`.
 
 ---
 
@@ -104,21 +104,15 @@ cachedir: .pytest_cache
 rootdir: C:\Users\dhyan\OneDrive\Desktop\graphone-pipeline
 plugins: anyio-4.15.1, asyncio-1.4.0
 asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collecting ... collected 6 items
+collecting ... collected 7 items
 
-tests/test_export.py::test_sheets_export_payload_formatting PASSED       [ 16%]
-tests/test_freshness.py::test_24h_freshness_filtering PASSED             [ 33%]
-tests/test_freshness.py::test_freshness_model_date_assignment PASSED     [ 50%]
-tests/test_papers.py::test_pwc_429_short_circuit PASSED                  [ 66%]
-tests/test_schemas.py::test_record_type_uppercase_validation PASSED      [ 83%]
+tests/test_export.py::test_sheets_export_payload_formatting PASSED       [ 14%]
+tests/test_export.py::test_sheets_export_batched_chunks PASSED           [ 28%]
+tests/test_freshness.py::test_24h_freshness_filtering PASSED             [ 42%]
+tests/test_freshness.py::test_freshness_model_date_assignment PASSED     [ 57%]
+tests/test_papers.py::test_pwc_429_short_circuit PASSED                  [ 71%]
+tests/test_schemas.py::test_record_type_uppercase_validation PASSED      [ 85%]
 tests/test_schemas.py::test_source_url_validation PASSED                 [100%]
 
-============================== 6 passed in 1.37s ==============================
+============================== 7 passed in 4.15s ==============================
 ```
-
----
-
-## 7. Known Gaps / Honest Summary
-
-1. **Google Sheets Live Export (High Priority)**:
-   - Cannot perform live export without user-provided Google Cloud Service Account JSON key file and active `GOOGLE_SHEET_ID`.
