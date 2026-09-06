@@ -1,0 +1,7 @@
+﻿.venv/
+credentials/
+.env
+data/*.jsonl
+data_backup/
+__pycache__/
+*.pyc
